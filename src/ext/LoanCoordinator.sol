@@ -94,6 +94,11 @@ abstract contract Borrower {
 
     function liquidationHook(Loan memory loan) external virtual;
 
+    function interestRateUpdateHook(
+        Loan memory loan,
+        uint256 newRate
+    ) external virtual;
+
     function auctionSettledHook(
         Loan memory loan,
         uint256 lenderReturn,
@@ -232,9 +237,6 @@ contract LoanCoordinator {
         );
         _debt.safeTransferFrom(_lender, address(this), _debtAmount);
         _debt.safeTransfer(msg.sender, _debtAmount);
-
-        borrowerLoans[msg.sender].push(loanCount);
-        lenderLoans[_lender].push(loanCount);
     }
 
     function liquidateLoan(uint256 _loanId) external {
@@ -242,9 +244,9 @@ contract LoanCoordinator {
         require(loan.lender == msg.sender, "Only lender can liquidate");
         if (
             loan.duration + loan.startingTime > block.timestamp ||
-            loan.duration == 0
+            loan.duration == type(uint256).max
         ) {
-            revert("Loan not yet liquidatable");
+            revert("Loan not yet liquidatable or is already in auction");
         }
         uint256 interest = calculateInterest(
             loan.interestRate,
@@ -255,7 +257,7 @@ contract LoanCoordinator {
         uint256 totalDebt = loan.debtAmount + interest;
         startAuction(_loanId, totalDebt, interest, loan.terms);
 
-        loan.duration = 0; // Auction off loan
+        loan.duration = type(uint256).max; // Auction off loan
 
         // Borrower Hook
         if (isContract(loan.borrower)) {
@@ -283,6 +285,34 @@ contract LoanCoordinator {
         try Lender(loan.lender).loanRepaidHook(loan) {} catch {}
 
         if (loan.duration == 0) delete auctions[loanIdToAuction[_loanId]];
+    }
+
+    function rebalanceRate(uint256 _loanId, uint256 _newRate) external {
+        // Prevent lender hook from reverting
+        Loan storage loan = loans[_loanId];
+        require(
+            loan.lender == msg.sender,
+            "Only lender can rebalance the rate"
+        );
+        if (loan.duration + loan.startingTime > block.timestamp) {
+            revert("Loan not yet adjustable");
+        }
+        uint256 interest = calculateInterest(
+            loan.interestRate,
+            loan.debtAmount,
+            loan.startingTime,
+            block.timestamp
+        );
+        uint256 totalDebt = loan.debtAmount + interest;
+        loan.debtAmount = totalDebt;
+        loan.startingTime = block.timestamp; // Reset starting time
+        loan.interestRate = _newRate;
+        // Borrower Hook
+        if (isContract(loan.borrower)) {
+            try
+                Borrower(loan.borrower).interestRateUpdateHook(loan, _newRate)
+            {} catch {}
+        }
     }
 
     // AUCTION LOGIC
@@ -408,6 +438,12 @@ contract LoanCoordinator {
         return loanTerms.length - 1;
     }
 
+    function updateBorrower(uint256 _loanId, address _borrower) external {
+        Loan storage loan = loans[_loanId];
+        require(loan.lender == msg.sender, "Only Borrower can update borrower");
+        loan.borrower = _borrower;
+    }
+
     // VIEW FUNCTIONS
 
     function getLoan(uint256 _loanId) external view returns (Loan memory loan) {
@@ -420,18 +456,6 @@ contract LoanCoordinator {
             loan.startingTime,
             block.timestamp
         );
-    }
-
-    function getBorrowerLoans(
-        address _borrower
-    ) external view returns (uint256[] memory) {
-        return borrowerLoans[_borrower];
-    }
-
-    function getLenderLoans(
-        address _lender
-    ) external view returns (uint256[] memory) {
-        return lenderLoans[_lender];
     }
 
     function isContract(address _addr) private view returns (bool) {

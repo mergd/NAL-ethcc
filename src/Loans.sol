@@ -1,0 +1,1 @@
+// Contract manages the loans made 
