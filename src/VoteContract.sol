@@ -4,11 +4,12 @@
 // Contract also manages the slashing if users are slashed
 
 pragma solidity ^0.8.0;
+
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract VoteContract is Ownable {
-    uint public constant DURATION = 7 days;
+    uint256 public constant DURATION = 7 days;
 
     IERC20 public constant NGMI = IERC20(0x000000000000000000000000000000000000dEaD);
 
@@ -43,7 +44,8 @@ contract VoteContract is Ownable {
 
     function coverShortfall(address _token, uint256 _amount) external onlyOwner {
         NGMI.transfer(owner(), _amount);
-        bytes32 hash = (keccak256(abi.encodePacked(_token, _epoch)));
-        slashedRatio[hash] += _amount / votes[_token][epoch()];
+        bytes32 hash = (keccak256(abi.encodePacked(_token, epoch() - 1)));
+        slashedRatio[hash] += _amount * 1e18 / votes[hash];
+        require(slashedRatio[hash] <= 1e18, "overslashed");
     }
 }

@@ -38,16 +38,12 @@ uint256 constant SCALAR = 1e6;
 
 // Use the autocompounding or simple interest, above is the autocompounding
 // Calculate notional accrued interest
-function calculateInterest(
-    uint256 _interestRate,
-    uint256 _debtAmount,
-    uint256 _startTime,
-    uint256 _endTime
-) pure returns (uint256 interest) {
+function calculateInterest(uint256 _interestRate, uint256 _debtAmount, uint256 _startTime, uint256 _endTime)
+    pure
+    returns (uint256 interest)
+{
     uint256 timeElapsed = _endTime - _startTime;
-    interest =
-        (_interestRate * _debtAmount * timeElapsed) /
-        (365 days * SCALAR);
+    interest = (_interestRate * _debtAmount * timeElapsed) / (365 days * SCALAR);
 }
 
 abstract contract Lender {
@@ -57,16 +53,9 @@ abstract contract Lender {
 
     LoanCoordinator public immutable coordinator;
 
-    function verifyLoan(
-        Loan memory loan,
-        bytes32 data
-    ) external virtual returns (bool);
+    function verifyLoan(Loan memory loan, bytes32 data) external virtual returns (bool);
 
-    function auctionSettledHook(
-        Loan memory loan,
-        uint256 lenderReturn,
-        uint256 borrowerReturn
-    ) external virtual;
+    function auctionSettledHook(Loan memory loan, uint256 lenderReturn, uint256 borrowerReturn) external virtual;
 
     function loanRepaidHook(Loan memory loan) external virtual;
 
@@ -79,9 +68,7 @@ abstract contract Lender {
      * @return _lendAmount Provide the amount that can be borrowed
      * @return _collateral Provide the amount of collateral required
      */
-    function getQuote(
-        Loan memory loan
-    ) external view virtual returns (uint256, uint256, uint256);
+    function getQuote(Loan memory loan) external view virtual returns (uint256, uint256, uint256);
 }
 
 // Optional interface for borrowers to implement
@@ -94,16 +81,9 @@ abstract contract Borrower {
 
     function liquidationHook(Loan memory loan) external virtual;
 
-    function interestRateUpdateHook(
-        Loan memory loan,
-        uint256 newRate
-    ) external virtual;
+    function interestRateUpdateHook(Loan memory loan, uint256 newRate) external virtual;
 
-    function auctionSettledHook(
-        Loan memory loan,
-        uint256 lenderReturn,
-        uint256 borrowerReturn
-    ) external virtual;
+    function auctionSettledHook(Loan memory loan, uint256 lenderReturn, uint256 borrowerReturn) external virtual;
 }
 
 contract LoanCoordinator {
@@ -120,12 +100,7 @@ contract LoanCoordinator {
     mapping(address => uint256[]) public borrowerLoans;
     mapping(address => uint256[]) public lenderLoans;
 
-    event LoanRepaid(
-        uint256 indexed id,
-        address indexed borrower,
-        address indexed lender,
-        uint256 amount
-    );
+    event LoanRepaid(uint256 indexed id, address indexed borrower, address indexed lender, uint256 amount);
     event LoanCreated(
         uint256 indexed id,
         address indexed borrower,
@@ -148,11 +123,7 @@ contract LoanCoordinator {
         uint256 startingTime,
         uint256 endingPrice
     );
-    event AuctionSettled(
-        uint256 indexed auction,
-        address bidder,
-        uint256 price
-    );
+    event AuctionSettled(uint256 indexed auction, address bidder, uint256 price);
     event AuctionReclaimed(uint256 indexed loanId, uint256 amount);
 
     event TermsSet(uint256 termId, Terms term);
@@ -226,15 +197,8 @@ contract LoanCoordinator {
         loans[loanCount] = newLoan;
 
         // Lender Hook to verify loan details
-        require(
-            Lender(_lender).verifyLoan(newLoan, _data),
-            "Loan not verified"
-        );
-        _collateral.safeTransferFrom(
-            msg.sender,
-            address(this),
-            _collateralAmount
-        );
+        require(Lender(_lender).verifyLoan(newLoan, _data), "Loan not verified");
+        _collateral.safeTransferFrom(msg.sender, address(this), _collateralAmount);
         _debt.safeTransferFrom(_lender, address(this), _debtAmount);
         _debt.safeTransfer(msg.sender, _debtAmount);
     }
@@ -242,18 +206,10 @@ contract LoanCoordinator {
     function liquidateLoan(uint256 _loanId) external {
         Loan storage loan = loans[_loanId];
         require(loan.lender == msg.sender, "Only lender can liquidate");
-        if (
-            loan.duration + loan.startingTime > block.timestamp ||
-            loan.duration == type(uint256).max
-        ) {
+        if (loan.duration + loan.startingTime > block.timestamp || loan.duration == type(uint256).max) {
             revert("Loan not yet liquidatable or is already in auction");
         }
-        uint256 interest = calculateInterest(
-            loan.interestRate,
-            loan.debtAmount,
-            loan.startingTime,
-            block.timestamp
-        );
+        uint256 interest = calculateInterest(loan.interestRate, loan.debtAmount, loan.startingTime, block.timestamp);
         uint256 totalDebt = loan.debtAmount + interest;
         startAuction(_loanId, totalDebt, interest, loan.terms);
 
@@ -271,12 +227,7 @@ contract LoanCoordinator {
 
     function repayLoan(uint256 _loanId, address onBehalfof) public {
         Loan memory loan = loans[_loanId];
-        uint256 interest = calculateInterest(
-            loan.interestRate,
-            loan.debtAmount,
-            loan.startingTime,
-            block.timestamp
-        );
+        uint256 interest = calculateInterest(loan.interestRate, loan.debtAmount, loan.startingTime, block.timestamp);
         uint256 totalDebt = loan.debtAmount + interest;
         loan.debtToken.safeTransferFrom(onBehalfof, loan.lender, totalDebt);
         emit LoanRepaid(_loanId, loan.borrower, loan.lender, totalDebt);
@@ -290,52 +241,29 @@ contract LoanCoordinator {
     function rebalanceRate(uint256 _loanId, uint256 _newRate) external {
         // Prevent lender hook from reverting
         Loan storage loan = loans[_loanId];
-        require(
-            loan.lender == msg.sender,
-            "Only lender can rebalance the rate"
-        );
+        require(loan.lender == msg.sender, "Only lender can rebalance the rate");
         if (loan.duration + loan.startingTime > block.timestamp) {
             revert("Loan not yet adjustable");
         }
-        uint256 interest = calculateInterest(
-            loan.interestRate,
-            loan.debtAmount,
-            loan.startingTime,
-            block.timestamp
-        );
+        uint256 interest = calculateInterest(loan.interestRate, loan.debtAmount, loan.startingTime, block.timestamp);
         uint256 totalDebt = loan.debtAmount + interest;
         loan.debtAmount = totalDebt;
         loan.startingTime = block.timestamp; // Reset starting time
         loan.interestRate = _newRate;
         // Borrower Hook
         if (isContract(loan.borrower)) {
-            try
-                Borrower(loan.borrower).interestRateUpdateHook(loan, _newRate)
-            {} catch {}
+            try Borrower(loan.borrower).interestRateUpdateHook(loan, _newRate) {} catch {}
         }
     }
 
     // AUCTION LOGIC
 
-    function startAuction(
-        uint256 _loanId,
-        uint256 _amount,
-        uint256 _interestRate,
-        uint256 _terms
-    ) internal {
+    function startAuction(uint256 _loanId, uint256 _amount, uint256 _interestRate, uint256 _terms) internal {
         Terms memory terms = loanTerms[_terms];
-        uint256 startPrice = ((_amount + _interestRate) *
-            terms.dutchAuctionMultiplier) / SCALAR;
-        uint256 endPrice = (_amount * _interestRate) /
-            (terms.settlementMultiplier * SCALAR);
-        Auction memory newAuction = Auction(
-            auctions.length,
-            _loanId,
-            terms.auctionLength,
-            startPrice,
-            block.timestamp,
-            endPrice
-        );
+        uint256 startPrice = ((_amount + _interestRate) * terms.dutchAuctionMultiplier) / SCALAR;
+        uint256 endPrice = (_amount * _interestRate) / (terms.settlementMultiplier * SCALAR);
+        Auction memory newAuction =
+            Auction(auctions.length, _loanId, terms.auctionLength, startPrice, block.timestamp, endPrice);
         auctions.push(newAuction);
     }
 
@@ -343,52 +271,25 @@ contract LoanCoordinator {
         Auction memory auction = auctions[_auctionId];
         Loan memory loan = loans[auction.loanId];
         Terms memory terms = loanTerms[loan.terms];
-        require(
-            auction.startingTime + auction.duration > block.timestamp,
-            "Auction has ended"
-        );
+        require(auction.startingTime + auction.duration > block.timestamp, "Auction has ended");
         uint256 currentPrice = getCurrentPrice(_auctionId);
-        loan.debtToken.safeTransferFrom(
-            msg.sender,
-            address(this),
-            currentPrice
-        );
+        loan.debtToken.safeTransferFrom(msg.sender, address(this), currentPrice);
         loan.collateralToken.safeTransfer(msg.sender, loan.collateralAmount);
 
-        uint256 interest = calculateInterest(
-            loan.interestRate,
-            loan.debtAmount,
-            loan.startingTime,
-            block.timestamp
-        );
-        uint256 _lenderClearing = ((loan.debtAmount + interest) *
-            terms.liquidationBonus) / SCALAR;
+        uint256 interest = calculateInterest(loan.interestRate, loan.debtAmount, loan.startingTime, block.timestamp);
+        uint256 _lenderClearing = ((loan.debtAmount + interest) * terms.liquidationBonus) / SCALAR;
 
-        uint256 lenderReturn = (_lenderClearing > currentPrice)
-            ? currentPrice
-            : _lenderClearing;
+        uint256 lenderReturn = (_lenderClearing > currentPrice) ? currentPrice : _lenderClearing;
         uint256 borrowerReturn = currentPrice - lenderReturn;
 
         loan.debtToken.safeTransfer(loan.lender, lenderReturn);
 
         // Prevent lender hook from reverting
-        try
-            Lender(loan.lender).auctionSettledHook(
-                loan,
-                lenderReturn,
-                borrowerReturn
-            )
-        {} catch {}
+        try Lender(loan.lender).auctionSettledHook(loan, lenderReturn, borrowerReturn) {} catch {}
 
         // Borrower Hook
         if (isContract(loan.borrower)) {
-            try
-                Borrower(loan.borrower).auctionSettledHook(
-                    loan,
-                    lenderReturn,
-                    borrowerReturn
-                )
-            {} catch {}
+            try Borrower(loan.borrower).auctionSettledHook(loan, lenderReturn, borrowerReturn) {} catch {}
         }
 
         if (borrowerReturn > 0) {
@@ -400,14 +301,8 @@ contract LoanCoordinator {
     function reclaim(uint256 _auctionId) external {
         // reclaim collateral is auction is lapsed
         Auction memory auction = auctions[_auctionId];
-        require(
-            auction.startingTime + auction.duration < block.timestamp,
-            "Auction has not ended"
-        );
-        require(
-            auction.endingPrice == auction.startingPrice,
-            "Auction has not ended"
-        );
+        require(auction.startingTime + auction.duration < block.timestamp, "Auction has not ended");
+        require(auction.endingPrice == auction.startingPrice, "Auction has not ended");
         Loan memory loan = loans[auction.loanId];
         loan.collateralToken.safeTransfer(loan.lender, loan.collateralAmount);
 
@@ -450,12 +345,7 @@ contract LoanCoordinator {
         loan = loans[_loanId];
 
         // Account for pending interest for this loan
-        loan.debtAmount += calculateInterest(
-            loan.interestRate,
-            loan.debtAmount,
-            loan.startingTime,
-            block.timestamp
-        );
+        loan.debtAmount += calculateInterest(loan.interestRate, loan.debtAmount, loan.startingTime, block.timestamp);
     }
 
     function isContract(address _addr) private view returns (bool) {

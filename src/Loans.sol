@@ -1,12 +1,12 @@
 //
 import "./ext/LoanCoordinator.sol";
 import {VoteContract} from "./VoteContract.sol";
+import {NALToken} from "./NAL.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Loans is Lender, Ownable {
-
     VoteContract public Vote = VoteContract(0x000000000000000000000000000000000000dEaD);
-    ERC20 public constant NAL = ERC20(0x000000000000000000000000000000000000dEaD);
+    NALToken public constant NAL = NALToken(0x000000000000000000000000000000000000dEaD);
 
     uint256 borrowCap = 1000000 * 1e18;
 
@@ -14,9 +14,9 @@ contract Loans is Lender, Ownable {
     mapping(address => uint256) public borrows;
 
     constructor(LoanCoordinator coord) Lender(coord) {}
-    
+
     /*
-struct Loan {
+    struct Loan {
     uint256 id;
     address borrower;
     address lender;
@@ -28,38 +28,38 @@ struct Loan {
     uint256 startingTime;
     uint256 duration;
     uint256 terms;
-}*/
+    }*/
 
-    function verifyLoan(
-        Loan memory loan,
-        bytes32 data
-    ) external override returns (bool) {
-        require(whitelisted[address(loan.collateralToken)], "collateral not wl");
+    function verifyLoan(Loan memory loan, bytes32 data) external override returns (bool) {
+        address token = address(loan.collateralToken);
+        require(whitelisted[token], "collateral not wl");
         require(address(loan.debtToken) == address(NAL), "not NAL");
         // require HF
-        borrows[address(loan.collateralToken)] += loan.debtAmount;
         uint256 epoch = Vote.epoch();
-        VoteContract.VoteSegment storage voteSegment = Vote.VoteSegments[epoch][address(loan.collateralToken)];
-        require(borrows[loan.collateralToken] <= borrowCap * voteSegment.votes / Vote.totalVotes[epoch], "above borrow cap");
+        bytes32 hash = (keccak256(abi.encodePacked(token, epoch - 1)));
+        borrows[address(loan.collateralToken)] += loan.debtAmount;
+        require(borrows[token] <= borrowCap * Vote.votes(hash) / Vote.totalVotes(epoch), "above borrow cap");
+        require(loan.interestRate >= borrowAPR(token));
         NAL.mint(loan.borrower, loan.debtAmount);
         return true;
     }
 
-    function borrowAPR() internal returns (bool) {
-
+    // apr scales based on the cap utilization
+    function borrowAPR(address token) internal view (uint256) {
+        uint256 epoch = Vote.epoch();
+        bytes32 hash = (keccak256(abi.encodePacked(token, epoch - 1)));
+        uint256 max = borrowCap * Vote.votes(hash) / Vote.totalVotes(epoch);
+        uint256 used = borrows[token];
+        return 1e6 * used / max;
     }
 
-    function auctionSettledHook(
-        Loan memory loan,
-        uint256 lenderReturn,
-        uint256 borrowerReturn
-    ) external override {
-
+    function auctionSettledHook(Loan memory loan, uint256 lenderReturn, uint256 borrowerReturn) external override {
+        borrows[address(loan.collateralToken)] -= loan.debtAmount;
     }
 
     function loanRepaidHook(Loan memory loan) external override {
-        NAL.transferFrom(loan.lender, address(this), loan);
-        NAL.burn();
+        borrows[address(loan.collateralToken)] -= loan.debtAmount;
+        NAL.burn(NAL.balanceOf(address(this)));
     }
 
     /**
@@ -71,9 +71,7 @@ struct Loan {
      * @return _lendAmount Provide the amount that can be borrowed
      * @return _collateral Provide the amount of collateral required
      */
-    function getQuote(
-        Loan memory loan
-    ) external view override returns (uint256, uint256, uint256) {
-        return (0,0,0);
-    } 
+    function getQuote(Loan memory loan) external view override returns (uint256, uint256, uint256) {
+        return (0, 0, 0);
+    }
 }
