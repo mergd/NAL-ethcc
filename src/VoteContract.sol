@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
-// Contract manages the ve side of things
 
 // Contract also manages the slashing if users are slashed
 
-pragma solidity ^0.8.0
+pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -11,7 +10,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract VoteContract is Ownable {
     uint256 public constant DURATION = 7 days;
 
-    IERC20 public constant NGMI = IERC20(0x000000000000000000000000000000000000dEaD);
+    IERC20 public constant NGMI =
+        IERC20(0x000000000000000000000000000000000000dEaD);
 
     mapping(bytes32 => mapping(address => uint256)) public deposits;
     mapping(bytes32 => uint256) public votes;
@@ -33,22 +33,36 @@ contract VoteContract is Ownable {
         emit Vote(msg.sender, _token, epoch());
     }
 
-    function withdraw(address _token, uint256 _epoch, uint256 _amount) external {
+    function withdraw(
+        address _token,
+        uint256 _epoch,
+        uint256 _amount
+    ) external {
         require(_epoch != epoch() - 1, "tokens are locked");
         bytes32 hash = (keccak256(abi.encodePacked(_token, _epoch)));
         deposits[hash][msg.sender] -= _amount;
         votes[hash] -= _amount;
         totalVotes[_epoch] -= _amount;
-        NGMI.transfer(msg.sender, _amount * (1e18 - slashedRatio[hash]) / 1e18);
+        NGMI.transfer(
+            msg.sender,
+            (_amount * (1e18 - slashedRatio[hash])) / 1e18
+        );
     }
 
-    function coverShortfall(address _token, uint256 _amount) external onlyOwner {
+    function coverShortfall(
+        address _token,
+        uint256 _amount
+    ) external onlyOwner {
         bytes32 hash = (keccak256(abi.encodePacked(_token, epoch() - 1)));
         // if amount > avaliable
-        uint256 safeAmount = _min(_amount, (1e18 - slashedRatio[hash]) * votes[hash]);
+        uint256 safeAmount = _min(
+            _amount,
+            (1e18 - slashedRatio[hash]) * votes[hash]
+        );
         NGMI.transfer(owner(), safeAmount);
-        slashedRatio[hash] += safeAmount * 1e18 / votes[hash];
+        slashedRatio[hash] += (safeAmount * 1e18) / votes[hash];
     }
+
     function _min(uint x, uint y) private pure returns (uint) {
         return x <= y ? x : y;
     }
