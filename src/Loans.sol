@@ -1,4 +1,6 @@
-//
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0
+
 import "./ext/LoanCoordinator.sol";
 import {VoteContract} from "./VoteContract.sol";
 import {NALToken} from "./NAL.sol";
@@ -55,6 +57,10 @@ contract Loans is Lender, Ownable {
 
     function auctionSettledHook(Loan memory loan, uint256 lenderReturn, uint256 borrowerReturn) external override {
         borrows[address(loan.collateralToken)] -= loan.debtAmount;
+        if (loan.debtAmount > borrowerReturn) {
+            uint256 shortfall = loan.debtAmount - borrowerReturn;
+            coverShortfall(address(loan.collateralToken), shortfall)
+        }
     }
 
     function loanRepaidHook(Loan memory loan) external override {
