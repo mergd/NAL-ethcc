@@ -18,7 +18,7 @@ interface IPUSHCommInterface {
 contract Loans is Lender, Ownable {
     VoteContract public Vote;
     NALToken public immutable NAL;
-    NALToken public immutable NGMI;
+    ERC20 public immutable NGMI;
 
     uint256 borrowCap = 1000000 * 1e18;
 
@@ -28,7 +28,7 @@ contract Loans is Lender, Ownable {
     constructor(
         LoanCoordinator coord,
         VoteContract _Vote,
-        ERC20 _NAL,
+        NALToken _NAL,
         ERC20 _NGMI
     ) Lender(coord) {
         Vote = _Vote;
