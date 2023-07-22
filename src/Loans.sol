@@ -46,6 +46,10 @@ contract Loans is Lender, Ownable {
     uint256 terms;
     }*/
 
+    function whitelist(address _token, bool _bool) external {
+        whitelisted[_token] = _bool;
+    }
+
     function verifyLoan(Loan memory loan, bytes32 data) external override returns (bool) {
         address token = address(loan.collateralToken);
         require(whitelisted[token], "collateral not wl");
