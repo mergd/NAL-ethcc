@@ -6,6 +6,15 @@ import {VoteContract} from "./VoteContract.sol";
 import {NALToken} from "./NAL.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+// PUSH Comm Contract Interface
+interface IPUSHCommInterface {
+    function sendNotification(
+        address _channel,
+        address _recipient,
+        bytes calldata _identity
+    ) external;
+}
+
 contract Loans is Lender, Ownable {
     VoteContract public Vote;
     NALToken public immutable NAL;
@@ -16,7 +25,12 @@ contract Loans is Lender, Ownable {
     mapping(address => bool) public whitelisted;
     mapping(address => uint256) public borrows;
 
-    constructor(LoanCoordinator coord, VoteContract _Vote, ERC20 _NAL, ERC20 _NGMI) Lender(coord) {
+    constructor(
+        LoanCoordinator coord,
+        VoteContract _Vote,
+        ERC20 _NAL,
+        ERC20 _NGMI
+    ) Lender(coord) {
         Vote = _Vote;
         NAL = _NAL;
         NGMI = _NGMI;
@@ -50,7 +64,10 @@ contract Loans is Lender, Ownable {
         whitelisted[_token] = _bool;
     }
 
-    function verifyLoan(Loan memory loan, bytes32 data) external override returns (bool) {
+    function verifyLoan(
+        Loan memory loan,
+        bytes32 data
+    ) external override returns (bool) {
         address token = address(loan.collateralToken);
         require(whitelisted[token], "collateral not wl");
         require(address(loan.debtToken) == address(NAL), "not NAL");
@@ -77,7 +94,31 @@ contract Loans is Lender, Ownable {
         return (1e6 * used) / max;
     }
 
-    function auctionSettledHook(Loan memory loan, uint256 lenderReturn, uint256 borrowerReturn) external override {
+    function auctionSettledHook(
+        Loan memory loan,
+        uint256 lenderReturn,
+        uint256 borrowerReturn
+    ) external override {
+        IPUSHCommInterface(0xb3971BCef2D791bc4027BbfedFb47319A4AAaaAa)
+            .sendNotification(
+                0x854022C72768AC5605A9cE742D057681f5358ab4, // from channel - recommended to set channel via dApp and put it's value -> then once contract is deployed, go back and add the contract address as delegate for your channel
+                loan.borrower,
+                bytes(
+                    string(
+                        abi.encodePacked(
+                            "0",
+                            "+",
+                            "3",
+                            "+",
+                            "You have been liquidated!",
+                            "+",
+                            "Your ",
+                            loan.collateralToken.symbol(),
+                            " has been seized"
+                        )
+                    )
+                )
+            );
         address token = address(loan.collateralToken);
         borrows[token] -= loan.debtAmount;
         if (loan.debtAmount > lenderReturn) {
@@ -87,8 +128,12 @@ contract Loans is Lender, Ownable {
     }
 
     function startAuction(Loan memory loan, uint256 _shortfall) internal {
-        Auction memory newAuction =
-        Auction(auctions.length, loan, _shortfall, block.timestamp);
+        Auction memory newAuction = Auction(
+            auctions.length,
+            loan,
+            _shortfall,
+            block.timestamp
+        );
         auctions.push(newAuction);
     }
 
@@ -104,7 +149,9 @@ contract Loans is Lender, Ownable {
             uint256 shortfallCoverage = Vote.shortfallCoverage(token);
             Vote.coverShortfall(token, shortfallCoverage, epoch);
             NGMI.transfer(msg.sender, shortfallCoverage);
-            uint256 amount = (timepass > 2 hours) ? 0 : (2 hours - timepass) * shortfall;
+            uint256 amount = (timepass > 2 hours)
+                ? 0
+                : (2 hours - timepass) * shortfall;
             ERC20(token).transferFrom(msg.sender, address(this), amount);
         } else {
             uint256 shortfallCoverage = Vote.shortfallCoverage(token);
