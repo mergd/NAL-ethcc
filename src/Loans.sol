@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
+pragma solidity ^0.8.0;
 
 import "./ext/LoanCoordinator.sol";
 import {VoteContract} from "./VoteContract.sol";
@@ -50,7 +51,11 @@ contract Loans is Lender, Ownable {
         uint256 epoch = Vote.epoch();
         bytes32 hash = (keccak256(abi.encodePacked(token, epoch - 1)));
         borrows[address(loan.collateralToken)] += loan.debtAmount;
-        require(borrows[token] <= borrowCap * Vote.votes(hash) / Vote.totalVotes(epoch), "above borrow cap");
+        require(
+            borrows[token] <=
+                (borrowCap * Vote.votes(hash)) / Vote.totalVotes(epoch),
+            "above borrow cap"
+        );
         require(loan.interestRate >= borrowAPR(token));
         NAL.mint(loan.borrower, loan.debtAmount);
         return true;
@@ -58,11 +63,12 @@ contract Loans is Lender, Ownable {
 
     // apr scales based on the cap utilization
     function borrowAPR(address token) internal view returns (uint256) {
+    function borrowAPR(address token) internal view returns (uint256) {
         uint256 epoch = Vote.epoch();
         bytes32 hash = (keccak256(abi.encodePacked(token, epoch - 1)));
-        uint256 max = borrowCap * Vote.votes(hash) / Vote.totalVotes(epoch);
+        uint256 max = (borrowCap * Vote.votes(hash)) / Vote.totalVotes(epoch);
         uint256 used = borrows[token];
-        return 1e6 * used / max;
+        return (1e6 * used) / max;
     }
 
     function auctionSettledHook(Loan memory loan, uint256 lenderReturn, uint256 borrowerReturn) external override {
@@ -117,7 +123,9 @@ contract Loans is Lender, Ownable {
      * @return _lendAmount Provide the amount that can be borrowed
      * @return _collateral Provide the amount of collateral required
      */
-    function getQuote(Loan memory loan) external view override returns (uint256, uint256, uint256) {
+    function getQuote(
+        Loan memory loan
+    ) external view override returns (uint256, uint256, uint256) {
         return (0, 0, 0);
     }
 }
