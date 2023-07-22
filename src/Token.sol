@@ -5,5 +5,7 @@ import {ERC20} from "@solmate/tokens/ERC20.sol";
 contract NALToken is ERC20 {
     constructor() ERC20("NAL Token", "NAL", 18) {}
 
-    function mint() external returns (uint256) {}
+    function mint() external returns (uint256) {
+        return 0;
+    }
 }
