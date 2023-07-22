@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.17;
 
 import "./ext/LoanCoordinator.sol";
 import {VoteContract} from "./VoteContract.sol";
@@ -8,16 +7,20 @@ import {NALToken} from "./NAL.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Loans is Lender, Ownable {
-    VoteContract public Vote = VoteContract(0x000000000000000000000000000000000000dEaD);
-    NALToken public constant NAL = NALToken(0x000000000000000000000000000000000000dEaD);
-    NALToken public constant NGMI = NALToken(0x000000000000000000000000000000000000dEaD);
+    VoteContract public Vote;
+    NALToken public immutable NAL;
+    NALToken public immutable NGMI;
 
     uint256 borrowCap = 1000000 * 1e18;
 
     mapping(address => bool) public whitelisted;
     mapping(address => uint256) public borrows;
 
-    constructor(LoanCoordinator coord) Lender(coord) {}
+    constructor(LoanCoordinator coord, VoteContract _Vote, ERC20 _NAL, ERC20 _NGMI) Lender(coord) {
+        Vote = _Vote;
+        NAL = _NAL;
+        NGMI = _NGMI;
+    }
 
     struct Auction {
         uint256 id;
@@ -62,7 +65,6 @@ contract Loans is Lender, Ownable {
     }
 
     // apr scales based on the cap utilization
-    function borrowAPR(address token) internal view returns (uint256) {
     function borrowAPR(address token) internal view returns (uint256) {
         uint256 epoch = Vote.epoch();
         bytes32 hash = (keccak256(abi.encodePacked(token, epoch - 1)));

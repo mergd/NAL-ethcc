@@ -10,8 +10,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract VoteContract is Ownable {
     uint256 public constant DURATION = 7 days;
 
-    IERC20 public constant NGMI =
-        IERC20(0x000000000000000000000000000000000000dEaD);
+    IERC20 public immutable NGMI;
 
     mapping(bytes32 => mapping(address => uint256)) public deposits;
     mapping(bytes32 => uint256) public votes;
@@ -19,6 +18,10 @@ contract VoteContract is Ownable {
     mapping(uint256 => uint256) public totalVotes;
 
     event Vote(address indexed user, address gauge, uint256 epoch);
+
+    constructor(ERC20 _NGMI) {
+        NGMI = _NGMI;
+    }
 
     function epoch() public view returns (uint256) {
         return epoch(block.timestamp);
@@ -53,14 +56,7 @@ contract VoteContract is Ownable {
         );
     }
 
-<<<<<<< HEAD
     function shortfallCoverage(address _token) public view returns (uint256) {
-=======
-    function coverShortfall(
-        address _token,
-        uint256 _amount
-    ) external onlyOwner {
->>>>>>> 781edc0b5abba4ad5664226ecfa6cccba6022a18
         bytes32 hash = (keccak256(abi.encodePacked(_token, epoch() - 1)));
         return (1e18 - slashedRatio[hash]) * votes[hash];
     }
