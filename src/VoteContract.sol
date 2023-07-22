@@ -10,41 +10,40 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract VoteContract is Ownable {
     uint public constant DURATION = 7 days;
 
-    IERC20 public constant NGMI = IERC20(0x123);
+    IERC20 public constant NGMI = IERC20(0x000000000000000000000000000000000000dEaD);
 
-    mapping(uint256 => mapping(uint256 => VoteSegment)) public VoteSegments;
-    struct VoteSegment {
-        uint256 votes;
-        mapping(address => uint256) deposits;
-        uint256 slashedRatio;
-    }
+    mapping(bytes32 => mapping(address => uint256)) public deposits;
+    mapping(bytes32 => uint256) public votes;
+    mapping(bytes32 => uint256) public slashedRatio;
+    mapping(uint256 => uint256) public totalVotes;
 
-    event Vote(address indexed user, uint256 indexed gauge, uint256 epoch);
+    event Vote(address indexed user, address gauge, uint256 epoch);
 
-    function epoch() internal pure returns (uint256) {
+    function epoch() public view returns (uint256) {
         return (block.timestamp / DURATION);
     }
 
-    function deposit(uint256 _gauge, uint256 _amount) external {
+    function deposit(address _token, uint256 _amount) external {
         NGMI.transferFrom(msg.sender, address(this), _amount);
-        VoteSegment storage voteSegment = VoteSegments[epoch()][_gauge];
-        voteSegment.deposits[msg.sender] += _amount;
-        voteSegment.votes += _amount;
-        emit Vote(msg.sender, _gauge, epoch());
+        bytes32 hash = (keccak256(abi.encodePacked(_token, epoch())));
+        deposits[hash][msg.sender] += _amount;
+        votes[hash] += _amount;
+        totalVotes[epoch()] += _amount;
+        emit Vote(msg.sender, _token, epoch());
     }
 
-    function withdraw(uint256 _gauge, uint256 _epoch, uint256 _amount) external {
-        require(_epoch != epoch() - 1, "tokens locked");
-        VoteSegment storage voteSegment = VoteSegments[epoch()][_gauge];
-        voteSegment.deposits[msg.sender] -= _amount;
-        voteSegment.votes -= _amount;
-        NGMI.transfer(msg.sender, _amount * (1e18 - voteSegment.slashedRatio) / 1e18);
+    function withdraw(address _token, uint256 _epoch, uint256 _amount) external {
+        require(_epoch != epoch() - 1, "tokens are locked");
+        bytes32 hash = (keccak256(abi.encodePacked(_token, _epoch)));
+        deposits[hash][msg.sender] -= _amount;
+        votes[hash] -= _amount;
+        totalVotes[_epoch] -= _amount;
+        NGMI.transfer(msg.sender, _amount * (1e18 - slashedRatio[hash]) / 1e18);
     }
 
-    function coverShortfall(uint256 _gauge, uint256 _amount) external onlyOwner {
-        VoteSegment storage voteSegment = VoteSegments[epoch()][_gauge];
+    function coverShortfall(address _token, uint256 _amount) external onlyOwner {
         NGMI.transfer(owner(), _amount);
-        voteSegment.slashedRatio += _amount / voteSegment.votes;
-        require(voteSegment.slashedRatio <= 1e18, "overslashed");
+        bytes32 hash = (keccak256(abi.encodePacked(_token, _epoch)));
+        slashedRatio[hash] += _amount / votes[_token][epoch()];
     }
 }
