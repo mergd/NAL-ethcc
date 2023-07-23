@@ -9,6 +9,8 @@ import {NALToken} from "src/NAL.sol";
 import {NGMIToken} from "src/NGMI.sol";
 import {VoteContract, ERC20} from "src/VoteContract.sol";
 import {Loans} from "src/Loans.sol";
+import {PSMArranger} from "src/PSMArranger.sol";
+import {MockERC20} from "src/mintableERC20.sol";
 
 /// @notice A very simple deployment script
 contract Deploy is Script {
@@ -27,7 +29,11 @@ contract Deploy is Script {
         console2.log("Deployed NGMIToken at address", address(NGMI));
         VoteContract Vote = new VoteContract(ERC20(address(NGMI)));
         console2.log("Deployed VoteContract at address", address(Vote));
-        Loans Loan = new Loans(coord, Vote, NAL, NGMI);
+        MockERC20 DAI = new MockERC20("DAI", "DAI");
+        console2.log("Deployed MockERC20 at address", address(DAI));
+        PSMArranger PSM = new PSMArranger(address(NGMI), address(DAI));
+        console2.log("Deployed PSMArranger at address", address(PSM));
+        Loans Loan = new Loans(coord, Vote, NAL, NGMI, address(PSM));
         console2.log("Deployed Loans at address", address(Loan));
         vm.stopBroadcast();
     }
