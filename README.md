@@ -14,6 +14,7 @@ Deployed NALToken at address 0x49feD5Dedf1c0f563f273c3026C59782a1D693D5
 Deployed NGMIToken at address 0x8A819536568A75D2f817e89A119c6E17Aa2dd557
 Deployed VoteContract at address 0x833fB3E35521D9e62c53C34C27CF7745a6060596
 Deployed Loans at address 0xF9f69678F66212d65fA5365739C3b5781c2813D6
+
 linea
 == Logs ==
 Deployed LoanCoordinator at address 0xc6e0b3bF7183e5D6dC9fA24eA82A934C7231aED1
@@ -21,11 +22,22 @@ Deployed NALToken at address 0x49feD5Dedf1c0f563f273c3026C59782a1D693D5
 Deployed NGMIToken at address 0x8A819536568A75D2f817e89A119c6E17Aa2dd557
 Deployed VoteContract at address 0x833fB3E35521D9e62c53C34C27CF7745a6060596
 Deployed Loans at address 0xF9f69678F66212d65fA5365739C3b5781c2813D6
+
 Sepolia:
 coordinator 0x49feD5Dedf1c0f563f273c3026C59782a1D693D5
 NAL 0xF9f69678F66212d65fA5365739C3b5781c2813D6
 NGMI 0x44A29D4b39dC7256393E9e7F34F5284C0EBA2f07
 Vote 0x76e83079Ef320ae72D5A53AFa39BECFc6346108a
+
+Mantle Testnet:
+== Logs ==
+Deployed LoanCoordinator at address 0xc6e0b3bF7183e5D6dC9fA24eA82A934C7231aED1
+Deployed NALToken at address 0x49feD5Dedf1c0f563f273c3026C59782a1D693D5
+Deployed NGMIToken at address 0x8A819536568A75D2f817e89A119c6E17Aa2dd557
+Deployed VoteContract at address 0x833fB3E35521D9e62c53C34C27CF7745a6060596
+Deployed MockERC20 at address 0xF9f69678F66212d65fA5365739C3b5781c2813D6
+Deployed PSMArranger at address 0x44A29D4b39dC7256393E9e7F34F5284C0EBA2f07
+Deployed Loans at address 0x76e83079Ef320ae72D5A53AFa39BECFc6346108a
 
 # femplate • [![tests](https://github.com/refcell/femplate/actions/workflows/ci.yml/badge.svg?label=tests)](https://github.com/refcell/femplate/actions/workflows/ci.yml) ![license](https://img.shields.io/github/license/refcell/femplate?label=license) ![solidity](https://img.shields.io/badge/solidity-^0.8.17-lightgrey)
 

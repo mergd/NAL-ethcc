@@ -22,7 +22,7 @@ interface OptimisticOracleV3Interface {
         address asserter; // Address of the asserter.
         uint64 assertionTime; // Time of the assertion.
         bool settled; // True if the request is settled.
-        IERC20 currency; // ERC20 token used to pay rewards and fees.
+        ERC20 currency; // ERC20 token used to pay rewards and fees.
         uint64 expirationTime; // Unix timestamp marking threshold when the assertion can no longer be disputed.
         bool settlementResolution; // Resolution of the assertion (false till resolved).
         bytes32 domainId; // Optional domain that can be used to relate the assertion to others in the escalationManager.
@@ -98,7 +98,7 @@ interface OptimisticOracleV3Interface {
         address callbackRecipient,
         address escalationManager,
         uint64 liveness,
-        IERC20 currency,
+        ERC20 currency,
         uint256 bond,
         bytes32 identifier,
         bytes32 domainId
@@ -159,7 +159,7 @@ interface OptimisticOracleV3Interface {
         address escalationManager,
         address caller,
         uint64 expirationTime,
-        IERC20 currency,
+        ERC20 currency,
         uint256 bond,
         bytes32 indexed identifier
     );
@@ -179,7 +179,7 @@ interface OptimisticOracleV3Interface {
     );
 
     event AdminPropertiesSet(
-        IERC20 defaultCurrency,
+        ERC20 defaultCurrency,
         uint64 defaultLiveness,
         uint256 burnedBondPercentage
     );
@@ -350,14 +350,14 @@ contract Loans is Lender, Ownable {
     }
 
     // immediately bid using UMA as resolution source
-    function optimisticLiquidate(uint256 _auctionId, uint256 _amount) external {
+    function optimisticLiquidate(uint256 _loanId) external {
         // add stuff
         bytes32 assertionId = oov3.assertTruthWithDefaults(
             bytes(
                 string(
                     abi.encodePacked(
                         "auction id ",
-                        _auctionId,
+                        _loanId,
                         " on NAL is liquidatable"
                     )
                 )
@@ -365,20 +365,20 @@ contract Loans is Lender, Ownable {
             address(this)
         );
         umaId[
-            keccak256(abi.encodePacked(_auctionId, block.timestamp))
+            keccak256(abi.encodePacked(_loanId, block.timestamp))
         ] = assertionId;
     }
 
     function optimisticLiquidateExecute(
-        uint256 _auctionId,
+        uint256 _loanId,
         uint256 _timestamp
     ) external {
         require(_timestamp + 1 hours < block.timestamp, "too late");
         bytes32 assertionId = umaId[
-            keccak256(abi.encodePacked(_auctionId, block.timestamp))
+            keccak256(abi.encodePacked(_loanId, block.timestamp))
         ];
         require(oov3.getAssertionResult(assertionId), "uma failed");
-        // do stuff
+        coordinator.liquidateLoan(_loanId);
     }
 
     function psmSwap(address user, uint256 amount) external {
